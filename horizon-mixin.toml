@@ -19,7 +19,7 @@ hook_version = 1
 kind = "HEAD"
 helper = "listed.rs"
 bindings = [
-  { name = "mods", ty = "&mut Vec<crate::game::native_hooks::NativeMod>", value = "&mut *mods" },
+  { name = "mods", ty = "&mut Vec<crate::game::mod_api::NativeMod>", value = "&mut *mods" },
 ]
 
 [[injection]]
@@ -30,7 +30,8 @@ kind = "HEAD"
 helper = "hud.rs"
 bindings = [
   { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
-  { name = "batch", ty = "&mut crate::game:: HudBatch", value = "&mut *batch" },
+  { name = "batch", ty = "&mut crate::game::HudBatch", value = "&mut *batch" },
+  { name = "corners", ty = "&mut crate::game::Corners", value = "&mut *corners" },
 ]
 
 [[injection]]
@@ -64,4 +65,6 @@ kind = "HEAD"
 helper = "settings.rs"
 bindings = [
   { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+  { name = "mod_id", ty = "&str", value = "mod_id" },
+  { name = "buttons", ty = "&mut Vec<String>", value = "&mut *buttons" },
 ]

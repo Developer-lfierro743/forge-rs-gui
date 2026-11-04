@@ -2,12 +2,13 @@
 fn forge_rs_listed(mods: &mut Vec<crate::game::native_hooks::NativeMod>) {
     use crate::game::forge_rs_gui as fgui;
     fgui::STATE.with(|state| {
-        mods.push(NativeMod {
+        mods.push(crate::game::native_hooks::NativeMod {
             id: "forge_rs_gui".into(),
-            name: "Forge.rs GUI".into(),
-            version: env!("CARGO_PKG_VERSION").into(),
+            title: "Forge.rs GUI".into(),
             description: "In-game mod manager for Horizon".into(),
-            enabled: true,
+            keys: vec![
+                ["forge_rs_gui.toggle", "Toggle Forge.rs GUI", "key.keyboard.g".into()],
+            ],
         });
     });
 }
