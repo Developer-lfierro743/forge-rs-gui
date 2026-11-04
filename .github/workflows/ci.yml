@@ -38,9 +38,10 @@ jobs:
           unzip -l forge_rs_gui.hnmod | grep -q "horizon-mixin.toml"
           unzip -l forge_rs_gui.hnmod | grep -q "mixins/forge_rs_gui/title_buttons.rs"
           unzip -l forge_rs_gui.hnmod | grep -q "mixins/forge_rs_gui/options_draw.rs"
+          unzip -l forge_rs_gui.hnmod | grep -q "mixins/forge_rs_gui/hud.rs"
           echo "✓ .hnmod structure valid"
 
-      - name: Validate manifest syntax
+      - name: Validate manifest syntax and injection count
         run: |
           rm -rf /tmp/mod-extract
           unzip -q -o forge_rs_gui.hnmod -d /tmp/mod-extract
@@ -64,8 +65,8 @@ jobs:
               errors.append("Missing [compatibility] horizon_revision")
           if not modules:
               errors.append("No [[module]] entries")
-          if len(injections) < 5:
-              errors.append(f"Expected >=5 injections, got {len(injections)}")
+          if len(injections) < 8:
+              errors.append(f"Expected >=8 injections, got {len(injections)}")
 
           print(f"Mod: {mod.get('id')} v{mod.get('version')}")
           print(f"Horizon revision: {compat.get('horizon_revision')}")
@@ -87,37 +88,34 @@ jobs:
           manifest = toml.load('/tmp/mod-extract/mixins/forge_rs_gui/horizon-mixin.toml')
           injections = manifest.get('injection', [])
 
-          # Check hook-point injections
-          hook_points = {'mods', 'hud', 'frame', 'command', 'settings'}
+          # Hook points we use
+          expected_hooks = {'mods', 'hud', 'frame', 'command', 'settings'}
           found_hooks = set()
+          target_count = 0
           for inj in injections:
               hook = inj.get('hook', '')
+              target = inj.get('target', '')
               if hook:
                   found_hooks.add(hook)
-
-          # Check target injections (mod_menu pattern)
-          targets = []
-          for inj in injections:
-              target = inj.get('target', '')
               if target:
-                  targets.append(target)
+                  target_count += 1
 
-          print(f'Hook points: {found_hooks}')
-          print(f'Target injections: {len(targets)}')
+          print(f'Hook points found: {found_hooks}')
+          print(f'Target injections: {target_count}')
 
-          missing = hook_points - found_hooks
+          missing = expected_hooks - found_hooks
           if missing:
               print(f'✗ Missing hook points: {missing}')
               sys.exit(1)
 
-          if len(targets) < 3:
-              print(f'✗ Expected >=3 target injections, got {len(targets)}')
+          if target_count < 5:
+              print(f'✗ Expected >=5 target injections, got {target_count}')
               sys.exit(1)
 
-          # Verify specific targets we need
-          target_str = ' '.join(targets)
+          # Verify specific targets
+          all_text = ' '.join(str(i) for i in injections)
           for needed in ['title::Title::buttons', 'options::Game::draw_options', 'options::Game::options_mouse']:
-              if needed not in target_str:
+              if needed not in all_text:
                   print(f'✗ Missing target: {needed}')
                   sys.exit(1)
 
