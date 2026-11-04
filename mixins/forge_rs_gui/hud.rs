@@ -1,4 +1,3 @@
-// Minimal HUD hook - shows a small indicator when mod manager is open
 fn forge_rs_hud(
     batch: &mut crate::hud::HudBatch,
     _corners: &mut crate::extras_hud::Corners,
@@ -8,11 +7,10 @@ fn forge_rs_hud(
         if !state.open {
             return;
         }
-        // Small indicator in top-right corner
         crate::game::native_hooks::helpers::draw_text(
             batch,
-            "Forge.rs",
-            batch.width - 80.0,
+            "Forge.rs GUI is open",
+            batch.width - 180.0,
             10.0,
             0xFFD7991E,
         );

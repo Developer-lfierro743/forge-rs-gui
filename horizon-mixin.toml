@@ -12,7 +12,6 @@ file = "crates/horizon-client/src/game.rs"
 name = "forge_rs_gui"
 source = "runtime.rs"
 
-# Hook-point injections (5 total)
 [[injection]]
 id = "listed"
 hook = "mods"
@@ -64,64 +63,4 @@ helper = "settings.rs"
 bindings = [
   { name = "mod_id", ty = "&str", value = "mod_id" },
   { name = "buttons", ty = "&mut Vec<String>", value = "&mut *buttons" },
-]
-
-# Target injections (5 total) - give us &mut Game access
-[[injection]]
-id = "title-buttons"
-kind = "HEAD"
-cancellable = true
-target = "horizon_client::title::Title::buttons"
-helper = "title_buttons.rs"
-bindings = [
-  { name = "title", ty = "&Title", value = "self" },
-  { name = "w", ty = "f32", value = "w" },
-  { name = "h", ty = "f32", value = "h" },
-]
-
-[[injection]]
-id = "title-click"
-kind = "HEAD"
-cancellable = true
-target = "horizon_client::title::Title::click"
-helper = "title_click.rs"
-bindings = [
-  { name = "title", ty = "&mut Title", value = "&mut *self" },
-  { name = "x", ty = "f32", value = "x" },
-  { name = "y", ty = "f32", value = "y" },
-  { name = "size", ty = "(f32, f32)", value = "size" },
-]
-
-[[injection]]
-id = "options-draw"
-kind = "HEAD"
-cancellable = true
-target = "horizon_client::game::options::Game<'_>::draw_options"
-helper = "options_draw.rs"
-bindings = [
-  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
-  { name = "batch", ty = "&mut HudBatch", value = "&mut *batch" },
-]
-
-[[injection]]
-id = "options-mouse"
-kind = "HEAD"
-cancellable = true
-target = "horizon_client::game::options::Game<'_>::options_mouse"
-helper = "options_mouse.rs"
-bindings = [
-  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
-  { name = "pressed", ty = "bool", value = "pressed" },
-  { name = "right", ty = "bool", value = "right" },
-]
-
-[[injection]]
-id = "options-scroll"
-kind = "HEAD"
-cancellable = true
-target = "horizon_client::game::options::Game<'_>::options_scroll"
-helper = "options_scroll.rs"
-bindings = [
-  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
-  { name = "amount", ty = "f32", value = "amount" },
 ]

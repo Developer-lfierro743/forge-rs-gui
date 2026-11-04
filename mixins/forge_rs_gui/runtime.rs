@@ -1,4 +1,3 @@
-// Forge.rs GUI — runtime state
 thread_local! {
     pub static STATE: ForgeRsGuiState = ForgeRsGuiState::new();
 }
@@ -7,7 +6,6 @@ thread_local! {
 pub struct ForgeRsGuiState {
     pub open: bool,
     pub selected_index: usize,
-    pub scroll: f32,
     pub installed_mods: Vec<crate::game::mod_api::NativeMod>,
     pub toast: Option<(String, std::time::Instant)>,
 }
@@ -17,7 +15,6 @@ impl ForgeRsGuiState {
         Self {
             open: false,
             selected_index: 0,
-            scroll: 0.0,
             installed_mods: Vec::new(),
             toast: None,
         }
