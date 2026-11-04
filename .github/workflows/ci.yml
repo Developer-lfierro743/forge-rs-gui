@@ -40,7 +40,8 @@ jobs:
 
       - name: Validate manifest syntax
         run: |
-          unzip -q forge_rs_gui.hnmod -d /tmp/mod-extract
+          rm -rf /tmp/mod-extract
+          unzip -q -o forge_rs_gui.hnmod -d /tmp/mod-extract
           python3 << 'PYEOF'
           import toml, sys
           try:
@@ -91,7 +92,8 @@ jobs:
 
       - name: Verify hook points match Horizon source
         run: |
-          unzip -q forge_rs_gui.hnmod -d /tmp/mod-extract
+          rm -rf /tmp/mod-extract
+          unzip -q -o forge_rs_gui.hnmod -d /tmp/mod-extract
           python3 << 'PYEOF'
           import toml, sys
           manifest = toml.load('/tmp/mod-extract/mixins/forge_rs_gui/horizon-mixin.toml')
