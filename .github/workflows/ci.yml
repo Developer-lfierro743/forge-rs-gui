@@ -36,6 +36,8 @@ jobs:
           test -f forge_rs_gui.hnmod
           unzip -l forge_rs_gui.hnmod | grep -q "horizon-native.json"
           unzip -l forge_rs_gui.hnmod | grep -q "horizon-mixin.toml"
+          unzip -l forge_rs_gui.hnmod | grep -q "mixins/forge_rs_gui/title_buttons.rs"
+          unzip -l forge_rs_gui.hnmod | grep -q "mixins/forge_rs_gui/options_draw.rs"
           echo "✓ .hnmod structure valid"
 
       - name: Validate manifest syntax
@@ -51,46 +53,32 @@ jobs:
               sys.exit(1)
 
           mod = manifest.get('mod', {})
-          print(f"Mod ID: {mod.get('id')}")
-          print(f"Version: {mod.get('version')}")
-          print(f"Priority: {mod.get('priority')}")
-
           compat = manifest.get('compatibility', {})
-          rev = compat.get('horizon_revision', 'MISSING')
-          print(f"Horizon revision: {rev}")
-
           modules = manifest.get('module', [])
           injections = manifest.get('injection', [])
-          print(f"Modules: {len(modules)}")
-          print(f"Injections: {len(injections)}")
 
           errors = []
-          if not mod.get('id'):
-              errors.append("Missing [mod] id")
-          if not mod.get('version'):
-              errors.append("Missing [mod] version")
-          if not rev or rev == 'MISSING':
+          if not mod.get('id') or not mod.get('version'):
+              errors.append("Missing [mod] id/version")
+          if not compat.get('horizon_revision'):
               errors.append("Missing [compatibility] horizon_revision")
           if not modules:
               errors.append("No [[module]] entries")
-          if not injections:
-              errors.append("No [[injection]] entries")
+          if len(injections) < 5:
+              errors.append(f"Expected >=5 injections, got {len(injections)}")
 
-          for i, inj in enumerate(injections):
-              hook = inj.get('hook') or inj.get('target', '')
-              if not hook:
-                  errors.append(f"Injection {i} missing hook/target")
+          print(f"Mod: {mod.get('id')} v{mod.get('version')}")
+          print(f"Horizon revision: {compat.get('horizon_revision')}")
+          print(f"Modules: {len(modules)}, Injections: {len(injections)}")
 
           if errors:
-              print("✗ Errors:")
               for e in errors:
-                  print(f"  - {e}")
+                  print(f"✗ {e}")
               sys.exit(1)
-
-          print(f"✓ Manifest valid: {len(modules)} modules, {len(injections)} injections")
+          print("✓ Manifest valid")
           PYEOF
 
-      - name: Verify hook points match Horizon source
+      - name: Verify hook points and target injections
         run: |
           rm -rf /tmp/mod-extract
           unzip -q -o forge_rs_gui.hnmod -d /tmp/mod-extract
@@ -98,21 +86,42 @@ jobs:
           import toml, sys
           manifest = toml.load('/tmp/mod-extract/mixins/forge_rs_gui/horizon-mixin.toml')
           injections = manifest.get('injection', [])
-          expected_hooks = {'mods', 'hud', 'frame', 'command', 'settings'}
+
+          # Check hook-point injections
+          hook_points = {'mods', 'hud', 'frame', 'command', 'settings'}
           found_hooks = set()
           for inj in injections:
               hook = inj.get('hook', '')
-              target = inj.get('target', '')
               if hook:
-                  found_hooks.add(hook.split('::')[-1].split('<')[0])
-              elif 'native_' in target:
-                  found_hooks.add(target.split('::')[-1].split('<')[0])
-          print(f'Found hooks: {found_hooks}')
-          missing = expected_hooks - found_hooks
+                  found_hooks.add(hook)
+
+          # Check target injections (mod_menu pattern)
+          targets = []
+          for inj in injections:
+              target = inj.get('target', '')
+              if target:
+                  targets.append(target)
+
+          print(f'Hook points: {found_hooks}')
+          print(f'Target injections: {len(targets)}')
+
+          missing = hook_points - found_hooks
           if missing:
-              print(f'✗ Missing hooks: {missing}')
+              print(f'✗ Missing hook points: {missing}')
               sys.exit(1)
-          print('✓ All required hook points present')
+
+          if len(targets) < 3:
+              print(f'✗ Expected >=3 target injections, got {len(targets)}')
+              sys.exit(1)
+
+          # Verify specific targets we need
+          target_str = ' '.join(targets)
+          for needed in ['title::Title::buttons', 'options::Game::draw_options', 'options::Game::options_mouse']:
+              if needed not in target_str:
+                  print(f'✗ Missing target: {needed}')
+                  sys.exit(1)
+
+          print('✓ All hook points and target injections present')
           PYEOF
 
       - name: Upload .hnmod artifact
