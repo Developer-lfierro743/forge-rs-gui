@@ -36,12 +36,13 @@ jobs:
           test -f forge_rs_gui.hnmod
           unzip -l forge_rs_gui.hnmod | grep -q "horizon-native.json"
           unzip -l forge_rs_gui.hnmod | grep -q "horizon-mixin.toml"
-          unzip -l forge_rs_gui.hnmod | grep -q "mixins/forge_rs_gui/title_buttons.rs"
-          unzip -l forge_rs_gui.hnmod | grep -q "mixins/forge_rs_gui/options_draw.rs"
+          unzip -l forge_rs_gui.hnmod | grep -q "mixins/forge_rs_gui/runtime.rs"
           unzip -l forge_rs_gui.hnmod | grep -q "mixins/forge_rs_gui/hud.rs"
+          unzip -l forge_rs_gui.hnmod | grep -q "mixins/forge_rs_gui/command.rs"
+          unzip -l forge_rs_gui.hnmod | grep -q "mixins/forge_rs_gui/listed.rs"
           echo "✓ .hnmod structure valid"
 
-      - name: Validate manifest syntax and injection count
+      - name: Validate manifest syntax
         run: |
           rm -rf /tmp/mod-extract
           unzip -q -o forge_rs_gui.hnmod -d /tmp/mod-extract
@@ -65,8 +66,8 @@ jobs:
               errors.append("Missing [compatibility] horizon_revision")
           if not modules:
               errors.append("No [[module]] entries")
-          if len(injections) < 8:
-              errors.append(f"Expected >=8 injections, got {len(injections)}")
+          if len(injections) != 5:
+              errors.append(f"Expected exactly 5 hook-point injections, got {len(injections)}")
 
           print(f"Mod: {mod.get('id')} v{mod.get('version')}")
           print(f"Horizon revision: {compat.get('horizon_revision')}")
@@ -79,7 +80,7 @@ jobs:
           print("✓ Manifest valid")
           PYEOF
 
-      - name: Verify hook points and target injections
+      - name: Verify hook points
         run: |
           rm -rf /tmp/mod-extract
           unzip -q -o forge_rs_gui.hnmod -d /tmp/mod-extract
@@ -88,7 +89,6 @@ jobs:
           manifest = toml.load('/tmp/mod-extract/mixins/forge_rs_gui/horizon-mixin.toml')
           injections = manifest.get('injection', [])
 
-          # Collect hook points
           expected_hooks = {'mods', 'hud', 'frame', 'command', 'settings'}
           found_hooks = set()
           for inj in injections:
@@ -96,41 +96,17 @@ jobs:
               if hook:
                   found_hooks.add(hook)
 
-          # Collect target patterns (flexible, ignore lifetime annotations)
-          target_patterns = []
-          for inj in injections:
-              target = inj.get('target', '')
-              if target:
-                  # Strip lifetime params like <'_> for matching
-                  import re
-                  clean = re.sub(r'<[^>]*>', '', target)
-                  target_patterns.append(clean)
-
           print(f'Hook points found: {found_hooks}')
-          print(f'Target injections: {len(target_patterns)}')
-
           missing = expected_hooks - found_hooks
           if missing:
               print(f'✗ Missing hook points: {missing}')
               sys.exit(1)
 
-          if len(target_patterns) < 5:
-              print(f'✗ Expected >=5 target injections, got {len(target_patterns)}')
+          if len(found_hooks) != 5:
+              print(f'✗ Expected exactly 5 hook points, got {len(found_hooks)}')
               sys.exit(1)
 
-          # Flexible target checks (lifetime-agnostic)
-          checks = [
-              'title::Title::buttons',
-              'options::Game::draw_options',
-              'options::Game::options_mouse',
-          ]
-          all_targets = ' '.join(target_patterns)
-          for needed in checks:
-              if needed not in all_targets:
-                  print(f'✗ Missing target: {needed}')
-                  sys.exit(1)
-
-          print('✓ All hook points and target injections present')
+          print('✓ All 5 hook points present')
           PYEOF
 
       - name: Upload .hnmod artifact
