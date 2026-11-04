@@ -88,34 +88,45 @@ jobs:
           manifest = toml.load('/tmp/mod-extract/mixins/forge_rs_gui/horizon-mixin.toml')
           injections = manifest.get('injection', [])
 
-          # Hook points we use
+          # Collect hook points
           expected_hooks = {'mods', 'hud', 'frame', 'command', 'settings'}
           found_hooks = set()
-          target_count = 0
           for inj in injections:
               hook = inj.get('hook', '')
-              target = inj.get('target', '')
               if hook:
                   found_hooks.add(hook)
+
+          # Collect target patterns (flexible, ignore lifetime annotations)
+          target_patterns = []
+          for inj in injections:
+              target = inj.get('target', '')
               if target:
-                  target_count += 1
+                  # Strip lifetime params like <'_> for matching
+                  import re
+                  clean = re.sub(r'<[^>]*>', '', target)
+                  target_patterns.append(clean)
 
           print(f'Hook points found: {found_hooks}')
-          print(f'Target injections: {target_count}')
+          print(f'Target injections: {len(target_patterns)}')
 
           missing = expected_hooks - found_hooks
           if missing:
               print(f'✗ Missing hook points: {missing}')
               sys.exit(1)
 
-          if target_count < 5:
-              print(f'✗ Expected >=5 target injections, got {target_count}')
+          if len(target_patterns) < 5:
+              print(f'✗ Expected >=5 target injections, got {len(target_patterns)}')
               sys.exit(1)
 
-          # Verify specific targets
-          all_text = ' '.join(str(i) for i in injections)
-          for needed in ['title::Title::buttons', 'options::Game::draw_options', 'options::Game::options_mouse']:
-              if needed not in all_text:
+          # Flexible target checks (lifetime-agnostic)
+          checks = [
+              'title::Title::buttons',
+              'options::Game::draw_options',
+              'options::Game::options_mouse',
+          ]
+          all_targets = ' '.join(target_patterns)
+          for needed in checks:
+              if needed not in all_targets:
                   print(f'✗ Missing target: {needed}')
                   sys.exit(1)
 
