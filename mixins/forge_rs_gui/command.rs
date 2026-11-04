@@ -1,9 +1,5 @@
 // Chat commands for Forge.rs GUI
-fn forge_rs_command(
-    game: &mut crate::game::Game<'_>,
-    command: &str,
-    ran: &mut bool,
-) {
+fn forge_rs_command(command: &str, ran: &mut bool) {
     use crate::game::forge_rs_gui as fgui;
     let cmd = command.trim();
     if cmd == "/forge-rs" || cmd == "/fr" {

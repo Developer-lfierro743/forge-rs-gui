@@ -1,6 +1,5 @@
 // Settings page for Forge.rs GUI
 fn forge_rs_settings(
-    game: &mut crate::game::Game<'_>,
     mod_id: &str,
     buttons: &mut Vec<String>,
 ) {
