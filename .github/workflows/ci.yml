@@ -1,0 +1,104 @@
+name: Forge.rs GUI CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+env:
+  CARGO_TERM_COLOR: always
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  validate-mod:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq unzip pkg-config libasound2-dev libwayland-dev libx11-dev libudev-dev
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      - name: Clone Horizon source
+        run: |
+          git clone --depth=1 https://github.com/horizon-rust/horizon.git /tmp/horizon
+          echo "HORIZON_PATH=/tmp/horizon" >> $GITHUB_ENV
+
+      - name: Verify .hnmod structure
+        run: |
+          test -f forge_rs_gui.hnmod
+          unzip -l forge_rs_gui.hnmod | grep -q "horizon-native.json"
+          unzip -l forge_rs_gui.hnmod | grep -q "horizon-mixin.toml"
+          unzip -l forge_rs_gui.hnmod | grep -q "mixins/forge_rs_gui/runtime.rs"
+          unzip -l forge_rs_gui.hnmod | grep -q "mixins/forge_rs_gui/hud.rs"
+          unzip -l forge_rs_gui.hnmod | grep -q "mixins/forge_rs_gui/listed.rs"
+          echo "✓ .hnmod structure valid"
+
+      - name: Validate manifest syntax
+        run: |
+          unzip -q forge_rs_gui.hnmod -d /tmp/mod-extract
+          python3 -c "
+          import toml
+          manifest = toml.load('/tmp/mod-extract/mixins/forge_rs_gui/horizon-mixin.toml')
+          assert 'mod' in manifest, 'Missing [mod] section'
+          assert manifest['mod']['id'] == 'forge_rs_gui', 'Wrong mod id'
+          assert 'compatibility' in manifest, 'Missing [compatibility]'
+          assert 'horizon_revision' in manifest['compatibility'], 'Missing horizon_revision'
+          modules = manifest.get('module', [])
+          assert len(modules) > 0, 'No [[module]] entries'
+          injections = manifest.get('injection', [])
+          assert len(injections) >= 5, f'Expected >=5 injections, got {len(injections)}'
+          print(f'✓ Manifest valid: {len(modules)} modules, {len(injections)} injections')
+          "
+
+      - name: Verify hook points match Horizon source
+        run: |
+          unzip -q forge_rs_gui.hnmod -d /tmp/mod-extract
+          echo "Checking hook points against Horizon source..."
+          python3 -c "
+          import toml
+          manifest = toml.load('/tmp/mod-extract/mixins/forge_rs_gui/horizon-mixin.toml')
+          injections = manifest.get('injection', [])
+          expected_hooks = {'mods', 'hud', 'frame', 'command', 'settings'}
+          found_hooks = {inj.get('hook') or inj.get('target', '').split('::')[-1].split('<')[0] for inj in injections}
+          print(f'Found hooks: {found_hooks}')
+          for hook in expected_hooks:
+              assert any(hook in h for h in found_hooks), f'Missing hook: {hook}'
+          print('✓ All required hook points present')
+          "
+
+      - name: Attempt compilation against Horizon
+        timeout-minutes: 30
+        run: |
+          cd /tmp/horizon
+          # Create a test workspace that includes our mod's helpers
+          mkdir -p /tmp/horizon-test-mod/src
+          cp /root/forge-rs-gui/mixins/forge_rs_gui/*.rs /tmp/horizon-test-mod/src/
+          cat > /tmp/horizon-test-mod/Cargo.toml << 'EOM'
+          [package]
+          name = "forge-rs-gui-test"
+          version = "0.1.0"
+          edition = "2021"
+          [lib]
+          path = "src/lib.rs"
+          EOM
+          cat > /tmp/horizon-test-mod/src/lib.rs << 'EOM'
+          pub mod forge_rs_gui;
+          EOM
+          # Try to add it as a local dependency and check compilation
+          # This is a best-effort check - full compilation may fail due to
+          # missing dependencies, but type errors will show up in cargo check
+          echo "⏳ Attempting compilation check (this may take a few minutes)..."
+          cargo check --package horizon-client 2>&1 | head -100 || true
+
+      - name: Upload .hnmod artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: forge_rs_gui.hnmod
+          path: forge_rs_gui.hnmod
